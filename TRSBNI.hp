@@ -1,0 +1,135 @@
+#ifndef _TRSBNI_HP_
+#define _TRSBNI_HP_
+
+#define reg1 R29
+#define reg2 R28
+#define reg3 R27
+#define reg4 R26
+
+.macro SEND					// проблема с задержками, но быстрее, чем VIC + TRANSFER. ДОРАБОТАТЬ!
+.mparam dst, src, cnt1, cnt2 			// dst - назначение, src - источник
+
+INIT: 						// определение стартовых значений
+	LDI reg1, cnt1+1			// число бит на отправку + посылка 8 нулей
+	LDI reg2, 0				// cnt1 - число бит на посылку. cnt2- величина задержки
+
+CHS:						// определение бита (1 или 0)
+	SUB reg1, reg1, 1			// декремент, начинает с 0-го бита.
+	QBEQ CLOSE, reg1, 0			// Выйдет, когда отпрвится последний бит + 8 нулей
+	QBBS SETR1, src.t7			// Если 0-й бит 1-а, то переход на метку SETR1 
+	QBBC CLRR1, src.t7			// Если 0-й бит 0, то переход на метку CLRR1
+
+SETR1:						// Установка 1-ы на выходе
+	SET dst					// устанавливаем 1-цу
+	ADD reg2, reg2, 1			// инкерементируем, для задержки
+	QBNE SETR1, reg2, cnt2			// сигнал будет 1-ым на время задержки.
+	LDI reg2, 0				// обновляем регистр
+	
+SETR0: 
+	CLR dst					// Для биимпульсого сигнала, 1-а формируется спадом из 1 в 0. Очищаем
+	ADD reg2, reg2, 1			
+	QBNE SETR0, reg2, cnt2			// задержка
+	LSL src, src, 1				// логический сдвиг вправо
+	LDI reg2, 0				// обновляем для след. прохода
+	QBA CHS
+CLRR1: 						// метка установки 0
+	CLR dst					// установка 0
+	ADD reg2, reg2, 1			// для задержки
+	QBNE CLRR1, reg2, cnt2			// цикл задержки
+	LDI reg2, 0				// обновляем регистр
+
+CLRR0:						// для биимпульсного сигнала, 0 формируется фронтом из 0 в 1.
+	SET dst					// установка 1-ы
+	ADD reg2, reg2, 1			// инкремент для задержки
+	QBNE CLRR0, reg2, cnt2			// цикл задержки
+	LSL src, src, 1				// сдвиг вправо
+	LDI reg2, 0				//обновляем регистр
+	QBA CHS
+
+CLOSE:
+	LDI reg1, 0				// очищаем регистры и выход
+	LDI reg2, 0
+.endm
+
+
+.macro VIC					// Макрос для определения импульсного кода любого байта.
+.mparam dst, src 				// dst - должен быть минимум 16-и разрядный регистр приема, src - входной байт
+INIT:
+	LDI reg1, 8				// инициализация для счета 8 бит
+START:						// главная метка цикла
+	QBEQ END, reg1, 0			// Закончить, когда пройдут прочитает все биты
+	SUB reg1, reg1, 1			
+	QBBS SET1, src.t0			// если 0-ой бит 1-а, то на метку SET1
+	QBBC CLR0, src.t0			// если 0-ой бит 0, то на метку CLR0
+SET1:						// Запись в регистр dst соответствующий импульсный код 1: 1-0 (инверсия из-за сдвига вправо)
+	CLR dst.t16
+	LSR dst, dst, 1
+	SET dst.t16
+	LSR dst, dst, 1				// после записи двух бит, необходимо сдвинуть в сторону младших разрядов
+	LSR src, src, 1				// сдвигаем, чтобы прочесть следующий бит
+	QBA START
+CLR0:						// запись в регистр dst импульсный код 0: 0-1 (инверсия из-за сдвига вправо)
+	SET dst.t16
+	LSR dst, dst, 1				
+	CLR dst.t16
+	LSR dst, dst, 1
+	LSR src, src, 1
+	QBA START
+END:
+.endm
+
+.macro TRANSFER					// макрос отправки информации в среду по его импульсному коду
+.mparam dst, src, del 				// dst - выходной пин, src - 2 байта импульсного кода
+						// del - задержка: 2 - 9mbit, 4 - 6mbit, 8 - 3mbit
+INIT:
+	LDI reg1, 16				// для чтения 16 бит
+	LDI reg2, del				
+START:
+	QBEQ END, reg1, 0			// выход, после прочтения 16-го бита
+	SUB reg1, reg1, 1
+	QBBS SET1, src.t0			// метка установки 1-ы на выходе
+	QBBC CLR0, src.t0			// метка установки 0 на выходе
+SET1:
+	SET dst
+	SUB reg2, reg2, 1
+	QBNE SET1, reg2, 0			// цикл задержки сигнала
+	LSR src, src, 1
+	LDI reg2, del
+	QBA START
+CLR0:
+	CLR dst
+	SUB reg2, reg2, 1
+	QBNE CLR0, reg2, 0			// цикл задержки сигнала
+	LSR src, src, 1
+	LDI reg2, del
+	QBA START
+END:
+.endm
+
+.macro RIC					// Макрос для перевода из импульсного кода в байт
+.mparam dst, src				// dst - куда запишется результат, src - 16-и разрядный регистр с импульсным кодом
+
+INIT:
+	LDI reg1, 0
+START:
+	QBBS CLR0, src.t1			// проверяет 2-ой бит ипульсного кода, чтобы установить 1 или 0
+	CLR dst.t8				// цикл установки 1-го бита
+	LSR dst, dst, 1
+	LSR src, src, 2
+	ADD reg1, reg1, 1
+	QBEQ EXIT, reg1, 8			// выход, как только прочтется байт
+	QBA START
+CLR0:						//цикл установки 0.
+	SET dst.t8	
+	LSR dst, dst, 1
+	LSR src, src, 2
+	ADD reg1, reg1, 1
+	QBEQ EXIT, reg1, 8
+	QBA START
+
+EXIT:
+	LDI reg1, 0
+.endm
+
+
+#endif //_TRSBNI_HP_
