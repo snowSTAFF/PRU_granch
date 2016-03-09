@@ -79,7 +79,7 @@ END:
 .endm
 
 .macro TRANSFER					// макрос отправки информации в среду по его импульсному коду
-.mparam dst, src, del 				// dst - выходной пин, src - 2 байта импульсного кода
+.mparam dst, src, del 				// dst - выходной пин, src - 16-и разрядный регистр
 						// del - задержка: 2 - 9mbit, 4 - 6mbit, 8 - 3mbit
 INIT:
 	LDI reg1, 16				// для чтения 16 бит
@@ -131,5 +131,16 @@ EXIT:
 	LDI reg1, 0
 .endm
 
+.macro CDELAY					// макрос задержки
+.mparam tm					// time определяет задержку. 1 - 100 ns.
+INIT:	
+	MOV reg1, 3*tm
+LOOPA:
+	SUB reg1, reg1, 1
+	QBEQ EXIT, reg1, 0
+	QBA LOOPA
+EXIT:
+	XOR reg1, reg1, reg1
+.endm
 
 #endif //_TRSBNI_HP_

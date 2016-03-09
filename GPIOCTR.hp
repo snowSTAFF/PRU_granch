@@ -1,0 +1,52 @@
+#ifndef _GPIOCTR_HP_
+#define _GPIOCTR_HP_
+
+#define rg1 R29
+#define rg2 R28
+#define rg3 R27
+#define rg4 R26
+#define GPIO_CLRDATAOUT 0x190
+#define GPIO_STDATAOUT 0x194
+
+.macro GIOS                        // Макрос установки выбранного GPIO
+.mparam nmbg, nmbp	// nmbg - какой GPIO используем(0,1,2,3), nmbp - какой пин нужно установить
+	
+	MOV rg1, 1<<nmbp
+	MOV rg2, nmbg | GPIO_STDATAOUT
+	SBBO rg1, rg2, 0, 4
+
+EXIT:
+.endm
+
+.macro GIOSS                        // Макрос установки серии битов выбранного GPIO
+.mparam nmbg, nmbp, off	// nmbg - какой GPIO используем(0,1,2,3), nmbp - какие пины нужно установить, off - смещение
+	
+	MOV rg1, off<<nmbp
+	MOV rg2, nmbg | GPIO_STDATAOUT
+	SBBO rg1, rg2, 0, 4
+
+EXIT:
+.endm
+
+.macro GIOC                        // Макрос установки выбранного GPIO
+.mparam nmbg, nmbp	// nmbg - какой GPIO используем(0,1,2,3), nmbp - какой пин нужно установить
+
+	MOV rg1, 1<<nmbp
+	MOV rg2, nmbg | GPIO_CLRDATAOUT
+	SBBO rg1, rg2, 0, 4
+
+EXIT:
+.endm
+
+.macro GIOSC                      // Макрос установки выбранного GPIO
+.mparam nmbg, nmbp, off		// nmbg - какой GPIO используем(0,1,2,3), nmbp - какие пины нужно установить, off - смещение.
+
+	MOV rg1, off<<nmbp
+	MOV rg2, nmbg | GPIO_CLRDATAOUT
+	SBBO rg1, rg2, 0, 4
+
+EXIT:
+.endm
+
+
+#endif //_GPIOCTR_HP_
