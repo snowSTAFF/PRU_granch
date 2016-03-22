@@ -28,7 +28,7 @@ EXIT:
 EXIT:
 .endm
 
-.macro GIOC                        // Макрос установки выбранного GPIO
+.macro GIOC                        // Макрос установки 0 выбранного GPIO
 .mparam nmbg, nmbp	// nmbg - какой GPIO используем(0,1,2,3), nmbp - какой пин нужно установить
 
 	MOV rg1, 1<<nmbp
@@ -38,7 +38,7 @@ EXIT:
 EXIT:
 .endm
 
-.macro GIOSC                      // Макрос установки выбранного GPIO
+.macro GIOSC                      // Макрос установки 0ей выбранного GPIO
 .mparam nmbg, nmbp, off		// nmbg - какой GPIO используем(0,1,2,3), nmbp - какие пины нужно установить, off - смещение.
 
 	MOV rg1, off<<nmbp

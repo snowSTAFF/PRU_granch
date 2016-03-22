@@ -132,15 +132,18 @@ EXIT:
 .endm
 
 .macro CDELAY					// макрос задержки
-.mparam tm					// time определяет задержку. 1 - 100 ns.
+.mparam tm					// tm определяет задержку. 1 - 45 ns.
 INIT:	
-	MOV reg1, 3*tm
+	MOV reg2, 3*tm
+	MOV reg1, reg2
 LOOPA:
 	SUB reg1, reg1, 1
 	QBEQ EXIT, reg1, 0
 	QBA LOOPA
 EXIT:
-	XOR reg1, reg1, reg1
+	XOR reg1,reg1,reg1
 .endm
+
+
 
 #endif //_TRSBNI_HP_
