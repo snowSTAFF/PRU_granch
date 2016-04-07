@@ -132,18 +132,70 @@ EXIT:
 .endm
 
 .macro CDELAY					// макрос задержки
-.mparam tm					// tm определяет задержку. 1 - 45 ns.
+.mparam tm					// time определяет задержку. 1 - 25 ns.
 INIT:	
-	MOV reg2, 3*tm
-	MOV reg1, reg2
+	MOV reg1, 3*tm
 LOOPA:
 	SUB reg1, reg1, 1
 	QBEQ EXIT, reg1, 0
 	QBA LOOPA
 EXIT:
-	XOR reg1,reg1,reg1
+	XOR reg1, reg1, reg1
 .endm
 
+.macro REC9			// Макрос приема данных с задержкой 9			
+.mparam IN, OUT, COUNT  	// входные параметры: IN - вход GPIO; OUT - выходной регистр;
+// COUNT - регистр, содержащий в себе число бит.
+RECIVE:
+	QBBS SET1X, IN   // проверяем 1 сейчас. Если нет, то сразу переход на 0
+	QBEQ BACK, COUNT, 0
+SET0X:
+	WBC IN		// проверям, точно ли 0.
+	CDELAY 9	// ждем 405 НС. До смены остается ещё 30 НС
+	WBC IN		// вторая проверка. Debbug точка
+	CDELAY 1	// после неё станет ясно, что пришло. Сигнал уже как 20 нс новый.
+	QBBC SET00, IN  // пришел 0? Если нет, значит 1-ца. -25 нс.
+SET01:			// ЗАписываем переход из 0 в 1
+	CLR OUT.t1	// Записываем 01
+	SET OUT.t0
+	LSL OUT, OUT, 2	//смещаем. -45нс.
+	CDELAY 9 		// Сигналу осталось минимум 30 нс. -405-40+480
+	SUB COUNT, COUNT, 2	// принято 2-а байта. 25 нс.
+	CDELAY 1		// -20 нс нового сигнала
+	QBA RECIVE		// возвращаемся на прием. -25
+SET00:				//записываем переход из 0 в 0
+	CLR OUT.t1
+	CLR OUT.t0
+	LSL OUT, OUT, 2
+	CDELAY 9
+	SUB COUNT, COUNT, 2
+	CDELAY 1
+	QBA RECIVE		// возвращаемся на прием -25
+SET1X:			// для установки 1-ы и....
+	WBS IN		// аналогично с нулем
+	CDELAY 9
+	WBS IN
+	CDELAY 1
+	QBBS SET11, IN
+SET10:
+	SET OUT.t1
+	CLR OUT.t0
+	LSL OUT, OUT, 2
+	CDELAY 9
+	SUB COUNT, COUNT, 2
+	CDELAY 1
+	QBA RECIVE	// переход на прием
+SET11:
+	SET OUT.t1
+	SET OUT.t0
+	LSL OUT, OUT, 2
+	CDELAY 9
+	SUB COUNT, COUNT, 2
+	CDELAY 1
+	QBA RECIVE 	// переход на прием
+BACK:			// метка записи значения
+	LSR OUT, OUT, 2 // когда приходят последний 2 бита, то он сдвигаются влево. Это необходимо учесть
 
+.endm
 
 #endif //_TRSBNI_HP_
