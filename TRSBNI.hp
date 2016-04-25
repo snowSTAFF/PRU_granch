@@ -9,64 +9,74 @@
 .macro RBC 
 .mparam IN, VALUE, COUNT, SPEED	//IN - входной регистр; VALUE - куда записывать данные
 //COUNT - сколько бит будем принимать; SPEED - значение равняется 1\4 и 3\4 от скорости передатчика
-//NOTE: считаем, что приемник и передатчик уже засинхронизированны.
+//NOTE: считаем, что приемник и передатчик уже засинхронизированны. SPEED = SPEED/4 (от трансфера)
 START:					// считаем, что начинаем работу с появлением 1-ы
 	QBEQ ENDRECIVE, COUNT, 1	// Основный цикл, пока не примет n-1 бит
-	CDELAY 11			// Ждем 1/4 времени. НУжно записать величину speed/2
+	CDELAY SPEED			// Ждем 1/4 времени. НУжно записать величину speed/2
 	QBBS COME1, IN			// если 1-а, то переход. Иначе на COME0
 COME0:					// в 1/4 времени был 0
-	CDELAY SPEED			// смотрим на 3/4 времени
+	CDELAY SPEED*2			// смотрим на 3/4 времени
 	QBBC SET0, IN			// Если 0 остался,то на метку установки 0. Иначе на SET1
 SET1:					// Запись 1-ы в регистр
 	SET VALUE.t0			// установка 1-ы. Сначала проходит старший разряд.
 	LSL VALUE, VALUE, 1		// Смещаем в сторону старшего разряда
 	SUB COUNT, COUNT, 1		// Приняли один бит
-	CDELAY 11			// Ждем остаток времени.
+	CDELAY SPEED			// Ждем остаток времени.
 	QBA START			// возврат на основную метку
 COME1:					// в 1/4 времени была 1-а
-	CDELAY SPEED 			// ждем ещё 3/4
+	CDELAY SPEED*2 			// ждем ещё 3/4
 	QBBS SET0, IN			// аналогично
 	QBA SET1
 SET0:
 	CLR VALUE.t0
 	LSL VALUE, VALUE, 1
 	SUB COUNT, COUNT, 1
-	CDELAY 11
+	CDELAY SPEED
 	QBA START
 
 ENDRECIVE:				// метка принятия последнего бита
-	CDELAY 11			// принцип работы аналогичный
+	CDELAY SPEED			// принцип работы аналогичный
 	QBBS ECOME1, IN
 ECOME0:
-	CDELAY SPEED
+	CDELAY SPEED*2
 	QBBC ESET0, IN
 ESET1:
 	SET VALUE.t0
-	CDELAY 11
+	CDELAY SPEED
 	QBA END
 ECOME1:
-	CDELAY SPEED 
+	CDELAY SPEED*2 
 	QBBS ESET0, IN
 	QBA ESET1
 ESET0:
 	CLR VALUE.t0
-	CDELAY 11
+	CDELAY SPEED
 END:
 .endm
 
+
 .macro 	TSYNC			// макрос синхронизации		
-.mparam  OUT, del		// OUT - выбор выхода для синхронизации, del - половина периода синхронизации
+.mparam  OUT, del, INV 		// OUT - выбор выхода для синхронизации, del - половина периода синхронизации, INV = 1 - invers
 START:
+QBBS INVERS, INV
+DEFAULT:
 	CLR OUT
 	CDELAY del*2		// полный период синхронизации
 	SET OUT
 	CDELAY del
-	
+	QBA END
+INVERS:
+	SET OUT
+	CDELAY del*2
+	CLR OUT
+	CDELAY del
+	QBA END
+END:	
 .endm
 
 .macro	TBC				// Transfer Bipulse Code (пока только 4-е байта)
 .mparam OUT, DATA, COUNT, SPEED	// OUT - выбор выхода для передачи, data - данные, LENGHT - число байт в пакете 
-// speed - выбор скорости. NOTE: при изменении скорости нужно в метках LASS11(00) написать удвоенное значение SPEED
+// speed - выбор скорости. SPEED - половина периода от 45 НС.
 LAST1:				// последняя была 1-а
 	QBEQ END, COUNT, 0	// как только пошлется последний бит, выход
 	QBBC LAST10, DATA.t31   // считаем, что синхронизация фронтом из 0 в 1
@@ -80,7 +90,7 @@ LAST11:				// метка установки первого бита, если он 1
 	QBA LAST1		// переходим на метку, соответствующую прошлому фронту 
 LAST10:				// метко прихода 0 после 1-ы
 	CLR OUT			// 0-ю соответствует сигнал, который не изменился за период
-	CDELAY 44
+	CDELAY SPEED*2
 	SUB COUNT, COUNT, 1
 	LSL DATA, DATA, 1
 LAST0:				//последний был 0
@@ -88,7 +98,7 @@ LAST0:				//последний был 0
 	QBBS LAST01, DATA.t31
 LAST00:				// аналогично с вышеизложенным
 	SET OUT
-	CDELAY 44
+	CDELAY SPEED*2
 	SUB COUNT, COUNT, 1
 	LSL DATA, DATA, 1
 	QBA LAST0
