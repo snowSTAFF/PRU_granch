@@ -53,10 +53,10 @@ END:
 
 .macro TDATA			// посылка данных.
 .mparam OUT, DATA, SPEED
-.mparam COUNT = R19	
+.mparam COUNT = R19		// опциональная возможность указать число передоваемых бит.
 START:	
 	MOV COUNT, 8
-	SET OUT			//посылка первого нуля
+	SET OUT			//посылка разделительной единицы
 	CDELAY SPEED
 	CLR OUT	
 	CDELAY SPEED
@@ -70,7 +70,7 @@ LAST11:				// метка установки первого бита, если он 1
 	CDELAY SPEED		// Задержка, соответствующая половине периода
 	SET OUT			
 	CDELAY SPEED
-	CLR OUT			// конец бита. Скорость соответствует 2*Speed
+	CLR OUT			// конец бита. Скорость соответствует 2*Speed*45нс
 	SUB COUNT, COUNT, 1	// вычитаем бит из счетчика
 	LSL DATA, DATA, 1	// сдвигаем следующий бит
 	QBA LAST1		// переходим на метку, соответствующую прошлому фронту 
