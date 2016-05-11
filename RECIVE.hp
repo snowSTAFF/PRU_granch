@@ -1,0 +1,55 @@
+#ifndef _RECIVE_HP_
+#define _RECIVE_HP_
+
+.macro RMACROS
+.mparam IN, DATA, SPEED
+WORK:
+	MOV R20, 0		// считает биты
+	MOV R21, 0		// считает байты
+	MOV r19, 10
+	WBS IN			// прием первого нуля
+	WBC IN
+	QBA START
+CONTROL:
+	ADD R20, R20, 1
+	QBEQ WRITE, R20, 8
+START:						
+	CDELAY SPEED			
+	QBBS COME1, IN			
+COME0:					
+	CDELAY SPEED*2		
+	QBBC SET00, IN
+SET11:
+	SET DATA.t0			
+	LSL DATA, DATA, 1			
+	WBC IN			
+	QBA CONTROL			
+SET10:					
+	SET DATA.t0			
+	LSL DATA, DATA, 1		
+	WBS IN			
+	QBA CONTROL			
+COME1:					
+	CDELAY SPEED*2 			
+	QBBS SET01, IN			
+	QBA SET10
+SET01:
+	CLR DATA.t0
+	LSL DATA, DATA, 1	
+	WBC IN
+	QBA CONTROL
+SET00:
+	CLR DATA.t0
+	LSL DATA, DATA, 1	
+	WBS IN
+	QBA CONTROL
+WRITE:
+	ADD R21, R21, 1
+	MOV R20, 0
+	QBEQ END, R21, 2
+	QBA START
+END:
+	LSR DATA, DATA, 1
+.endm
+
+#endif //_RECIVE_HP_

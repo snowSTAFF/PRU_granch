@@ -1,0 +1,105 @@
+#ifndef _TRANSMIT_HP_
+#define _TRANSMIT_HP_
+
+
+.macro TMACROS			// посылка маркера вида 0 0000 0001 1110 0010
+.mparam OUT, SPEED
+START:
+	MOV R20, 482		// вид маркера 0000 0001 1110 0010	
+	MOV R19, 16
+	SET OUT			//посылка первого нуля
+	CDELAY SPEED*2
+	CLR OUT			
+	QBA LAST1
+LAST1:				// последняя была 1-а
+	QBEQ END, R19, 0	// как только пошлется последний бит, выход
+	QBBC LAST10, R20.t15   // считаем, что синхронизация фронтом из 0 в 1
+LAST11:				// метка установки первого бита, если он 1
+	CLR OUT			// 1-а формируется изменением полярности сигнала
+	CDELAY SPEED		// Задержка, соответствующая половине периода
+	SET OUT			
+	CDELAY SPEED
+	CLR OUT			// конец бита. Скорость соответствует 2*Speed
+	SUB R19, R19, 1	// вычитаем бит из счетчика
+	LSL R20, R20, 1	// сдвигаем следующий бит
+	QBA LAST1		// переходим на метку, соответствующую прошлому фронту 
+LAST10:				// метко прихода 0 после 1-ы
+	CLR OUT			// 0-ю соответствует сигнал, который не изменился за период
+	CDELAY SPEED*2
+	SET OUT
+	SUB R19, R19, 1
+	LSL R20, R20, 1
+LAST0:				//последний был 0
+	QBEQ END, R19, 0
+	QBBS LAST01, R20.t15
+LAST00:				// аналогично с вышеизложенным
+	SET OUT
+	CDELAY SPEED*2
+	CLR OUT
+	SUB R19, R19, 1
+	LSL R20, R20, 1
+	QBA LAST1
+LAST01: 
+	SET OUT
+	CDELAY SPEED
+	CLR OUT
+	CDELAY SPEED
+	SET OUT
+	SUB R19, R19, 1
+	LSL R20, R20, 1
+	QBA LAST0
+END:
+.endm
+
+.macro TDATA			// посылка данных.
+.mparam OUT, DATA, SPEED
+.mparam COUNT = R19	
+START:	
+	MOV COUNT, 8
+	SET OUT			//посылка первого нуля
+	CDELAY SPEED
+	CLR OUT	
+	CDELAY SPEED
+	SET OUT		
+	QBA LAST0
+LAST1:				// последняя была 1-а
+	QBEQ END, COUNT, 0	// как только пошлется последний бит, выход
+	QBBC LAST10, DATA.t7   // считаем, что синхронизация фронтом из 0 в 1
+LAST11:				// метка установки первого бита, если он 1
+	CLR OUT			// 1-а формируется изменением полярности сигнала
+	CDELAY SPEED		// Задержка, соответствующая половине периода
+	SET OUT			
+	CDELAY SPEED
+	CLR OUT			// конец бита. Скорость соответствует 2*Speed
+	SUB COUNT, COUNT, 1	// вычитаем бит из счетчика
+	LSL DATA, DATA, 1	// сдвигаем следующий бит
+	QBA LAST1		// переходим на метку, соответствующую прошлому фронту 
+LAST10:				// метко прихода 0 после 1-ы
+	CLR OUT			// 0-ю соответствует сигнал, который не изменился за период
+	CDELAY SPEED*2
+	SET OUT
+	SUB COUNT, COUNT, 1
+	LSL DATA, DATA, 1
+LAST0:				//последний был 0
+	QBEQ END, COUNT, 0
+	QBBS LAST01, DATA.t7
+LAST00:				// аналогично с вышеизложенным
+	SET OUT
+	CDELAY SPEED*2
+	CLR OUT
+	SUB COUNT, COUNT, 1
+	LSL DATA, DATA, 1
+	QBA LAST1
+LAST01: 
+	SET OUT
+	CDELAY SPEED
+	CLR OUT
+	CDELAY SPEED
+	SET OUT
+	SUB COUNT, COUNT, 1
+	LSL DATA, DATA, 1
+	QBA LAST0
+END:
+.endm
+
+#endif //_TRANSMIT_HP_
