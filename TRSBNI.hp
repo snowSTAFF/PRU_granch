@@ -6,6 +6,7 @@
 #define reg3 R27
 #define reg4 R26
 
+
 .macro RBC 
 .mparam IN, VALUE, COUNT, SPEED	//IN - входной регистр; VALUE - куда записывать данные
 //COUNT - сколько бит будем принимать; SPEED - значение равняется 1\4 и 3\4 от скорости передатчика
@@ -56,9 +57,7 @@ END:
 
 
 .macro 	TSYNC			// макрос синхронизации		
-.mparam  OUT, del, INV 		// OUT - выбор выхода для синхронизации, del - половина периода синхронизации, INV = 1 - invers
-START:
-QBBS INVERS, INV
+.mparam  OUT, del 		// OUT - выбор выхода для синхронизации, del - половина периода синхронизации, INV = 1 - invers
 DEFAULT:
 	CLR OUT
 	CDELAY del*2		// полный период синхронизации
@@ -198,10 +197,7 @@ INIT:
 	MOV reg1, 3*tm
 LOOPA:
 	SUB reg1, reg1, 1
-	QBEQ EXIT, reg1, 0
-	QBA LOOPA
-EXIT:
-	XOR reg1, reg1, reg1
+	QBNE LOOPA, reg1, 0
 .endm
 
 .macro REC9			// Макрос приема данных с задержкой 9			
