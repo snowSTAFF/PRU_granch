@@ -14,38 +14,38 @@ LAST1:				// последняя была 1-а
 	QBBC LAST10, R20.t16   // считаем, что синхронизация фронтом из 0 в 1
 LAST11:				// метка установки первого бита, если он 1
 	CLR OUT			// 1-а формируется изменением полярности сигнала
-	CDELAY SPEED		// Задержка, соответствующая половине периода
+	CDELAY SPEED+2		// Задержка, соответствующая половине периода
 	SET OUT			
-	CDELAY SPEED
-	CLR OUT			// конец бита. Скорость соответствует 2*Speed
 	SUB R19, R19, 1	// вычитаем бит из счетчика
 	LSL R20, R20, 1	// сдвигаем следующий бит
+	CDELAY SPEED+2
+	//CLR OUT	// конец бита. Скорость соответствует 2*Speed
 	QBA LAST1		// переходим на метку, соответствующую прошлому фронту 
 LAST10:				// метко прихода 0 после 1-ы
 	CLR OUT			// 0-ю соответствует сигнал, который не изменился за период
-	CDELAY SPEED*2
-	SET OUT
 	SUB R19, R19, 1
 	LSL R20, R20, 1
+	CDELAY SPEED*2+4
+	//SET OUT
 	QBA LAST0
 LAST0:				//последний был 0
 	QBEQ END, R19, 0
 	QBBS LAST01, R20.t16
 LAST00:				// аналогично с вышеизложенным
 	SET OUT
-	CDELAY SPEED*2
-	CLR OUT
 	SUB R19, R19, 1
 	LSL R20, R20, 1
+	CDELAY SPEED*2+4
+	//CLR OUT
 	QBA LAST1
 LAST01: 
 	SET OUT
-	CDELAY SPEED
+	CDELAY SPEED+2
 	CLR OUT
-	CDELAY SPEED
-	SET OUT
 	SUB R19, R19, 1
 	LSL R20, R20, 1
+	CDELAY SPEED+2
+	//SET OUT
 	QBA LAST0
 END:
 .endm
@@ -60,14 +60,14 @@ SENDONE:
 	SET OUT			//посылка разделительной единицы
 	CDELAY SPEED
 	CLR OUT	
-	CDELAY SPEED
+	CDELAY SPEED+1		//+1 только для 0.5 мбит
 	SET OUT		
 	QBA LAST0
 SENDONEINV:
 	CLR OUT
 	CDELAY SPEED
 	SET OUT
-	CDELAY SPEED
+	CDELAY SPEED+1		// +1 только для 0.5 мбит
 	CLR OUT
 	QBA LAST1
 LAST1:				// последняя была 1-а
@@ -77,7 +77,7 @@ LAST11:				// метка установки первого бита, если он 1
 	CLR OUT			// 1-а формируется изменением полярности сигнала
 	CDELAY SPEED		// Задержка, соответствующая половине периода
 	SET OUT			
-	CDELAY SPEED
+	CDELAY SPEED+2
 	CLR OUT			// конец бита. Скорость соответствует 2*Speed*45нс
 	MOV INV, 1
 	SUB COUNT, COUNT, 1	// вычитаем бит из счетчика
@@ -85,7 +85,7 @@ LAST11:				// метка установки первого бита, если он 1
 	QBA LAST1		// переходим на метку, соответствующую прошлому фронту 
 LAST10:				// метко прихода 0 после 1-ы
 	CLR OUT			// 0-ю соответствует сигнал, который не изменился за период
-	CDELAY SPEED*2
+	CDELAY SPEED*2+2
 	SET OUT
 	MOV INV, 0
 	SUB COUNT, COUNT, 1
@@ -96,7 +96,7 @@ LAST0:				//последний был 0
 	QBBS LAST01, DATA.t7
 LAST00:				// аналогично с вышеизложенным
 	SET OUT
-	CDELAY SPEED*2
+	CDELAY SPEED*2+2
 	CLR OUT
 	MOV INV, 1
 	SUB COUNT, COUNT, 1
@@ -106,7 +106,7 @@ LAST01:
 	SET OUT
 	CDELAY SPEED
 	CLR OUT
-	CDELAY SPEED
+	CDELAY SPEED+2
 	SET OUT
 	MOV INV, 0
 	SUB COUNT, COUNT, 1
@@ -116,15 +116,11 @@ END:
 .endm
 
 .macro TZERO			// посылка вида 1 0000 0000 00
-.mparam OUT, SPEED
+.mparam OUT, SPEED, INV
 START:
-	MOV R20, 0		// вид маркера 0000 0001 1110 0010	
+	MOV R20, 512		// вид маркера 0000 0001 1110 0010	
 	MOV R19, 10
-	CLR OUT			//посылка первого нуля
-	CDELAY SPEED
-	SET OUT
-	CDELAY SPEED			
-	QBA LAST10
+	QBEQ LAST0, INV, 0
 LAST1:				// последняя была 1-а
 	QBEQ END, R19, 0	// как только пошлется последний бит, выход
 	QBBC LAST10, R20.t9   // считаем, что синхронизация фронтом из 0 в 1
@@ -134,6 +130,7 @@ LAST11:				// метка установки первого бита, если он 1
 	SET OUT			
 	CDELAY SPEED
 	CLR OUT			// конец бита. Скорость соответствует 2*Speed
+	MOV INV, 1
 	SUB R19, R19, 1	// вычитаем бит из счетчика
 	LSL R20, R20, 1	// сдвигаем следующий бит
 	QBA LAST1		// переходим на метку, соответствующую прошлому фронту 
@@ -141,6 +138,7 @@ LAST10:				// метко прихода 0 после 1-ы
 	CLR OUT			// 0-ю соответствует сигнал, который не изменился за период
 	CDELAY SPEED*2
 	SET OUT
+	MOV INV, 1
 	SUB R19, R19, 1
 	LSL R20, R20, 1
 LAST0:				//последний был 0
@@ -150,6 +148,7 @@ LAST00:				// аналогично с вышеизложенным
 	SET OUT
 	CDELAY SPEED*2
 	CLR OUT
+	MOV INV, 0
 	SUB R19, R19, 1
 	LSL R20, R20, 1
 	QBA LAST1
@@ -159,6 +158,7 @@ LAST01:
 	CLR OUT
 	CDELAY SPEED
 	SET OUT
+	MOV INV, 1
 	SUB R19, R19, 1
 	LSL R20, R20, 1
 	QBA LAST0

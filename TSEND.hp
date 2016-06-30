@@ -1,0 +1,73 @@
+#ifndef _TDATA_HP_
+#define _TDATA_HP_
+
+.macro TDATA			// посылка данных.
+.mparam OUT, DATA, SPEED, INV
+.mparam COUNT = R19		// опциональная возможность указать число передоваемых бит.
+START:	
+	MOV COUNT, 8
+	QBEQ SENDONEINV, INV, 1
+SENDONE:
+	SET OUT			//посылка разделительной единицы
+	CDELAY SPEED+1
+	CLR OUT	
+	CDELAY SPEED+1
+	SET OUT		
+	QBA LAST0
+SENDONEINV:
+	CLR OUT
+	CDELAY SPEED+1
+	SET OUT
+	CDELAY SPEED+1
+	CLR OUT
+	QBA LAST1
+LAST1:				// последняя была 1-а
+	QBEQ END, COUNT, 0	// как только пошлется последний бит, выход
+	QBBC LAST10, DATA.t7   // считаем, что синхронизация фронтом из 0 в 1
+LAST11:				// метка установки первого бита, если он 1
+	CLR OUT			// 1-а формируется изменением полярности сигнала
+	CDELAY SPEED+1		// Задержка, соответствующая половине периода
+	SET OUT			
+	CDELAY SPEED
+	CLR OUT			// конец бита. Скорость соответствует 2*Speed*45нс
+	MOV INV, 1
+	SUB COUNT, COUNT, 1	// вычитаем бит из счетчика
+	LSL DATA, DATA, 1	// сдвигаем следующий бит
+	QBA LAST1		// переходим на метку, соответствующую прошлому фронту 
+LAST10:				// метко прихода 0 после 1-ы
+	CLR OUT			// 0-ю соответствует сигнал, который не изменился за период
+	CLR OUT
+	CDELAY 1
+	CDELAY SPEED*2
+	SET OUT
+	MOV INV, 0
+	SUB COUNT, COUNT, 1
+	LSL DATA, DATA, 1
+	QBA LAST0
+LAST0:				//последний был 0
+	QBEQ END, COUNT, 0
+	QBBS LAST01, DATA.t7
+LAST00:				// аналогично с вышеизложенным
+	SET OUT
+	SET OUT
+	CDELAY 1
+	CDELAY SPEED*2
+	CLR OUT
+	MOV INV, 1
+	SUB COUNT, COUNT, 1
+	LSL DATA, DATA, 1
+	QBA LAST1
+LAST01: 
+	SET OUT
+	CDELAY SPEED+1
+	CLR OUT
+	CDELAY SPEED
+	SET OUT
+	MOV INV, 0
+	SUB COUNT, COUNT, 1
+	LSL DATA, DATA, 1
+	QBA LAST0
+END:
+.endm
+
+#endif //_TSEND_HP_
